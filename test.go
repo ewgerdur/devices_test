@@ -13,7 +13,7 @@ import (
 )
 
 
-func ft_my_post(r *http.Response, q_id string, data url.Values) {
+func ft_my_post(r *http.Response, q_id string, data url.Values, ch chan<-string) {
 
 	req, err := http.NewRequest("POST", "http://185.204.3.165/question/" + q_id, bytes.NewBufferString(data.Encode()))
 	if err != nil {
@@ -40,13 +40,15 @@ func ft_my_post(r *http.Response, q_id string, data url.Values) {
 		log.Fatal("Error reading body. ", err)
 	}
 	if string(body) != "404 - not found" {
-		fmt.Println(string(body))
+		ch <- string(body)
+		//fmt.Println(string(body))
+		fmt.Println(<- ch)
 	} else {
 		return
 	}
 }
 
-func ft_my_get(r *http.Response, q_id string) {
+func ft_my_get(r *http.Response, q_id string, ch chan<-string) {
 	var max_r string
 	var max_s string
 	var name string
@@ -75,12 +77,13 @@ func ft_my_get(r *http.Response, q_id string) {
 		log.Fatal("Error reading body. ", err)
 	}
 	if string(body) != "404 - not found" {
-		//fmt.Printf("%s\n", body)
-		fmt.Println(string(body))
+		ch <- string(body)
+		//fmt.Println(string(body))
+		fmt.Println(<-ch)
 	} else {
 		return
 	}
-	//contain := strings.Contains(string(body), "<h2>Answer</h2>")
+	
 	contain := strings.Index(string(body), "<h2>Answer</h2>")
 	count := 0
 	for flag := 0; flag >= 0; flag++ {
@@ -93,7 +96,6 @@ func ft_my_get(r *http.Response, q_id string) {
 			data.Add(name, "test")
 			//data = ft_my_post(r , q_id, name, "test", data)
 		} else if string(body[contain + 50 + 1 + count]) == "i" && string(body[contain + 50 + 13 + count]) == "r" {
-			//fmt.Println(string(body[contain + 50 + 13 + count]))
 			p_end := strings.Index(string(body[contain + 50 + 13 + count :]), "</p>")
 
 			r_t := 0
@@ -109,7 +111,6 @@ func ft_my_get(r *http.Response, q_id string) {
 						}
 					} 
 					val := string(body[i + r_t + 7 : i + r_t + 7 + ko - 1])
-					//fmt.Println(val)
 					if len(val) > len(max_r) {
 						max_r = val
 					}
@@ -161,13 +162,19 @@ func ft_my_get(r *http.Response, q_id string) {
 		count = count + line_end + 13
 	}
 	
-	ft_my_post(r , q_id, data)
+	ft_my_post(r , q_id, data, ch)
+}
+
+func start_request(r *http.Response, n int) {
+	ch := make(chan string)
+	for i := 1; i <= 10; i++ {
+		go ft_my_get(r, strconv.Itoa(i), ch)
+	}
 }
 
 func main() {
+	n := 6
 	r, _ := http.Get("http://185.204.3.165")
-	for i := 1; i <= 10; i++ {
-		ft_my_get(r, strconv.Itoa(i))
-		//time.Sleep(time.Second * 1)
-	}
+	start_request(r, n)
 }
+
